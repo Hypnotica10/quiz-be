@@ -2,8 +2,6 @@ package com.quiz.project.dto.req;
 
 import java.util.List;
 
-import com.quiz.project.entity.UserEntity;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;

@@ -18,9 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.quiz.project.dto.req.CourseReqDTO;
-import com.quiz.project.dto.req.SubjectReqDTO;
 import com.quiz.project.dto.resp.CourseRespDTO;
-import com.quiz.project.dto.resp.SubjectRespDTO;
 import com.quiz.project.service.CourseService;
 import com.quiz.project.util.annotation.ApiMessage;
 import com.quiz.project.util.error.InvalidException;

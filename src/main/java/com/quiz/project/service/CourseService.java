@@ -2,7 +2,6 @@ package com.quiz.project.service;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -17,7 +16,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import com.quiz.project.config.ModelMapperConfig;
 import com.quiz.project.dto.req.CourseReqDTO;
 import com.quiz.project.dto.req.SentenceReqDTO;
 import com.quiz.project.dto.resp.AuthRespDTO;
@@ -26,72 +24,58 @@ import com.quiz.project.dto.resp.MajorRespDTO;
 import com.quiz.project.dto.resp.QuizTestRespDto;
 import com.quiz.project.dto.resp.SentenceRespDTO;
 import com.quiz.project.dto.resp.SentenceTestRespDto;
-import com.quiz.project.dto.resp.SubjectRespDTO;
 import com.quiz.project.entity.CourseEntity;
 import com.quiz.project.entity.MajorEntity;
-import com.quiz.project.entity.SubjectEntity;
 import com.quiz.project.entity.UserEntity;
 import com.quiz.project.repository.CourseRepository;
-import com.quiz.project.repository.MajorRepository;
-import com.quiz.project.repository.SubjectRepository;
-import com.quiz.project.repository.UserRepository;
 import com.quiz.project.util.ConvertModel;
 import com.quiz.project.util.error.InvalidException;
 
 @Service
 public class CourseService {
 	private CourseRepository courseRepository;
-	private MajorRepository majorRepository;
-	private UserRepository userRepository;
+	private MajorService majorService;
+	private UserService userService;
 	private SentenceService sentenceService;
-	private SubjectRepository subjectRepository;
+	private SubjectService subjectService;
 
-	public CourseService(CourseRepository courseRepository, MajorRepository majorRepository,
-			UserRepository userRepository, SentenceService sentenceService, SubjectRepository subjectRepository) {
+	public CourseService(CourseRepository courseRepository, MajorService majorService, UserService userService,
+			SentenceService sentenceService, SubjectService subjectService) {
 		this.courseRepository = courseRepository;
-		this.majorRepository = majorRepository;
-		this.userRepository = userRepository;
+		this.majorService = majorService;
+		this.userService = userService;
 		this.sentenceService = sentenceService;
-		this.subjectRepository = subjectRepository;
+		this.subjectService = subjectService;
 	}
 
 	private boolean checkExistsById(Long id) {
 		return this.courseRepository.existsById(id);
 	}
 
-	public CourseRespDTO createCourse(CourseReqDTO newCourse) throws InvalidException {
-		boolean isMajorExists = this.majorRepository.existsById(newCourse.getMajorId());
-		if (!isMajorExists) {
-			throw new InvalidException("major does not exist");
-		}
-		boolean isUserExists = this.userRepository.existsById(newCourse.getUserId());
-		if (!isUserExists) {
-			throw new InvalidException("user does not exist");
-		}
+	public CourseEntity reqDtoToEntity(CourseReqDTO courseReqDto) {
+		CourseEntity newCourseEntity = new CourseEntity();
+		ConvertModel.getModelMapping(courseReqDto, newCourseEntity);
 
-		MajorEntity majorEntity = this.majorRepository.findById(newCourse.getMajorId()).get();
-		UserEntity userEntity = this.userRepository.findById(newCourse.getUserId()).get();
-		CourseEntity newCourseEntity = ModelMapperConfig.map(newCourse, CourseEntity.class);
+		MajorEntity majorEntity = this.majorService.getMajorEntityById(courseReqDto.getMajorId());
 		newCourseEntity.setMajor(majorEntity);
+
+		UserEntity userEntity = this.userService.getUserEntityById(courseReqDto.getUserId());
 		newCourseEntity.setUser(userEntity);
 
-		CourseEntity courseEntity = this.courseRepository.save(newCourseEntity);
+		return newCourseEntity;
+	}
 
-		List<SentenceReqDTO> sentenceReqDtos = newCourse.getSentences();
-		for (SentenceReqDTO senReqDTO : sentenceReqDtos) {
-			this.sentenceService.createSentence(senReqDTO, courseEntity.getId());
-		}
+	public CourseRespDTO entityToRespDto(CourseEntity courseEntity) {
+		CourseRespDTO courseRespDTO = new CourseRespDTO();
+		ConvertModel.getModelMapping(courseEntity, courseRespDTO);
 
 		MajorRespDTO majorRespDTO = new MajorRespDTO();
-		ConvertModel.getModelMapping(majorEntity, majorRespDTO);
+		ConvertModel.getModelMapping(courseEntity.getMajor(), majorRespDTO);
+		courseRespDTO.setMajor(majorRespDTO);
 
 		AuthRespDTO.UserLogin userLogin = new AuthRespDTO.UserLogin();
-		ConvertModel.getModelMapping(userEntity, userLogin);
-
-		CourseRespDTO courseRespDTO = new CourseRespDTO();
-		courseRespDTO.setMajor(majorRespDTO);
+		ConvertModel.getModelMapping(courseEntity, userLogin);
 		courseRespDTO.setUser(userLogin);
-		ConvertModel.getModelMapping(courseEntity, courseRespDTO);
 
 		int count = this.sentenceService.countSentencesByCourseId(courseEntity.getId());
 		courseRespDTO.setCountSentence(count);
@@ -99,25 +83,39 @@ public class CourseService {
 		return courseRespDTO;
 	}
 
-	public List<CourseRespDTO> getListCourseByUserId(Long id) {
+	public CourseEntity getCourseById(Long id) {
+		return this.courseRepository.findById(id).get();
+	}
+
+	public CourseRespDTO createCourse(CourseReqDTO newCourse) throws InvalidException {
+		boolean isMajorExists = this.majorService.checkExistsById(newCourse.getMajorId());
+		if (!isMajorExists) {
+			throw new InvalidException("major does not exist");
+		}
+		boolean isUserExists = checkExistsById(newCourse.getUserId());
+		if (!isUserExists) {
+			throw new InvalidException("user does not exist");
+		}
+
+		CourseEntity saveCourseEntity = this.courseRepository.save(reqDtoToEntity(newCourse));
+
+		List<SentenceReqDTO> sentenceReqDtos = newCourse.getSentences();
+		for (SentenceReqDTO senReqDTO : sentenceReqDtos) {
+			this.sentenceService.createSentence(senReqDTO, saveCourseEntity.getId());
+		}
+
+		return entityToRespDto(saveCourseEntity);
+	}
+
+	public List<CourseRespDTO> getListCourseByUserId(Long id) throws InvalidException {
+		boolean isUserExists = this.userService.checkExistsById(id);
+		if (!isUserExists) {
+			throw new InvalidException("user does not exist");
+		}
 		List<CourseEntity> listCourseEntities = this.courseRepository.findAllByUserId(id);
 		List<CourseRespDTO> listCourseRespDtos = new ArrayList<CourseRespDTO>();
 		for (CourseEntity courseEntity : listCourseEntities) {
-			CourseRespDTO courseRespDTO = new CourseRespDTO();
-			ConvertModel.getModelMapping(courseEntity, courseRespDTO);
-			int count = this.sentenceService.countSentencesByCourseId(courseEntity.getId());
-			courseRespDTO.setCountSentence(count);
-
-			MajorEntity majorEntity = this.majorRepository.findById(courseEntity.getMajor().getId()).get();
-			MajorRespDTO majorRespDTO = new MajorRespDTO();
-			ConvertModel.getModelMapping(majorEntity, majorRespDTO);
-			courseRespDTO.setMajor(majorRespDTO);
-
-			UserEntity userEntity = this.userRepository.findById(courseEntity.getUser().getId()).get();
-			AuthRespDTO.UserLogin userLogin = new AuthRespDTO.UserLogin();
-			ConvertModel.getModelMapping(userEntity, userLogin);
-			courseRespDTO.setUser(userLogin);
-
+			CourseRespDTO courseRespDTO = entityToRespDto(courseEntity);
 			listCourseRespDtos.add(courseRespDTO);
 		}
 		return listCourseRespDtos;
@@ -130,11 +128,11 @@ public class CourseService {
 		if (!checkExistsById(id)) {
 			throw new InvalidException("Id invalid");
 		}
-		boolean isMajorExists = this.majorRepository.existsById(courseReqDTO.getMajorId());
+		boolean isMajorExists = this.majorService.checkExistsById(courseReqDTO.getMajorId());
 		if (!isMajorExists) {
 			throw new InvalidException("major does not exist");
 		}
-		boolean isUserExists = this.userRepository.existsById(courseReqDTO.getUserId());
+		boolean isUserExists = this.userService.checkExistsById(courseReqDTO.getUserId());
 		if (!isUserExists) {
 			throw new InvalidException("user does not exist");
 		}
@@ -158,29 +156,9 @@ public class CourseService {
 		}
 		this.sentenceService.deleteSentenceByListId(listIdDelete);
 
-		MajorEntity majorEntity = this.majorRepository.findById(courseReqDTO.getMajorId()).get();
-		UserEntity userEntity = this.userRepository.findById(courseReqDTO.getUserId()).get();
-		CourseEntity courseEntity = new CourseEntity();
-		ConvertModel.getModelMapping(courseReqDTO, courseEntity);
-		courseEntity.setMajor(majorEntity);
-		courseEntity.setUser(userEntity);
+		CourseEntity saveCourse = this.courseRepository.save(reqDtoToEntity(courseReqDTO));
 
-		CourseEntity saveCourse = this.courseRepository.save(courseEntity);
-		CourseRespDTO courseRespDto = new CourseRespDTO();
-		ConvertModel.getModelMapping(saveCourse, courseRespDto);
-
-		MajorRespDTO majorRespDTO = new MajorRespDTO();
-		ConvertModel.getModelMapping(majorEntity, majorRespDTO);
-		courseRespDto.setMajor(majorRespDTO);
-
-		AuthRespDTO.UserLogin userLogin = new AuthRespDTO.UserLogin();
-		ConvertModel.getModelMapping(userEntity, userLogin);
-		courseRespDto.setUser(userLogin);
-
-		int count = this.sentenceService.countSentencesByCourseId(id);
-		courseRespDto.setCountSentence(count);
-
-		return courseRespDto;
+		return entityToRespDto(saveCourse);
 	}
 
 	public void deleteCourse(Long id) throws InvalidException {
@@ -197,12 +175,8 @@ public class CourseService {
 			throw new InvalidException("Id invalid");
 		}
 		CourseEntity courseEntity = this.courseRepository.findById(id).get();
-		CourseRespDTO courseRespDto = ModelMapperConfig.map(courseEntity, CourseRespDTO.class);
-		courseRespDto.setMajor(ModelMapperConfig.map(courseEntity.getMajor(), MajorRespDTO.class));
-		courseRespDto.setUser(ModelMapperConfig.map(courseEntity.getUser(), AuthRespDTO.UserLogin.class));
-		int count = this.sentenceService.countSentencesByCourseId(id);
-		courseRespDto.setCountSentence(count);
-		return courseRespDto;
+
+		return entityToRespDto(courseEntity);
 	}
 
 	public static <T> void shuffleList(final List<T> list) {
@@ -290,29 +264,14 @@ public class CourseService {
 		List<CourseRespDTO> lisCourseRespDTOs = new ArrayList<CourseRespDTO>();
 
 		for (CourseEntity courseEntity : result) {
-			MajorEntity majorEntity = this.majorRepository.findById(courseEntity.getMajor().getId()).orElse(null);
-			MajorRespDTO majorRespDTO = new MajorRespDTO();
-			ConvertModel.getModelMapping(majorEntity, majorRespDTO);
-
-			UserEntity userEntity = this.userRepository.findById(courseEntity.getUser().getId()).orElse(null);
-			AuthRespDTO.UserLogin userLogin = new AuthRespDTO.UserLogin();
-			ConvertModel.getModelMapping(userEntity, userLogin);
-
-			int count = this.sentenceService.countSentencesByCourseId(courseEntity.getId());
-
-			CourseRespDTO courseRespDTO = new CourseRespDTO();
-			ConvertModel.getModelMapping(courseEntity, courseRespDTO);
-			courseRespDTO.setMajor(majorRespDTO);
-			courseRespDTO.setUser(userLogin);
-			courseRespDTO.setCountSentence(count);
-			lisCourseRespDTOs.add(courseRespDTO);
+			lisCourseRespDTOs.add(entityToRespDto(courseEntity));
 		}
 
 		return new PageImpl<CourseRespDTO>(lisCourseRespDTOs, pageable, result.getTotalElements());
 	}
 
 	public Page<CourseRespDTO> getCourseBySubjectId(Long id, Pageable pageable) throws InvalidException {
-		boolean checkSubjectExists = this.subjectRepository.existsById(id);
+		boolean checkSubjectExists = this.subjectService.checkExistsById(id);
 		if (!checkSubjectExists) {
 			throw new InvalidException("Subject id invalid");
 		}
@@ -338,22 +297,7 @@ public class CourseService {
 		List<CourseRespDTO> lisCourseRespDTOs = new ArrayList<CourseRespDTO>();
 
 		for (CourseEntity courseEntity : result) {
-			MajorEntity majorEntity = this.majorRepository.findById(courseEntity.getMajor().getId()).orElse(null);
-			MajorRespDTO majorRespDTO = new MajorRespDTO();
-			ConvertModel.getModelMapping(majorEntity, majorRespDTO);
-
-			UserEntity userEntity = this.userRepository.findById(courseEntity.getUser().getId()).orElse(null);
-			AuthRespDTO.UserLogin userLogin = new AuthRespDTO.UserLogin();
-			ConvertModel.getModelMapping(userEntity, userLogin);
-
-			int count = this.sentenceService.countSentencesByCourseId(courseEntity.getId());
-
-			CourseRespDTO courseRespDTO = new CourseRespDTO();
-			ConvertModel.getModelMapping(courseEntity, courseRespDTO);
-			courseRespDTO.setMajor(majorRespDTO);
-			courseRespDTO.setUser(userLogin);
-			courseRespDTO.setCountSentence(count);
-			lisCourseRespDTOs.add(courseRespDTO);
+			lisCourseRespDTOs.add(entityToRespDto(courseEntity));
 		}
 
 		return new PageImpl<CourseRespDTO>(lisCourseRespDTOs, pageable, result.getTotalElements());

@@ -1,22 +1,14 @@
 package com.quiz.project.config;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.quiz.project.config.security.SecurityUtil;
-import com.quiz.project.entity.UserEntity;
-import com.quiz.project.service.UserService;
-import com.quiz.project.util.error.InvalidException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -26,9 +18,6 @@ public class PermissionInterceptor implements HandlerInterceptor {
 
 	@Autowired
 	private SecurityUtil securityUtil;
-
-	@Autowired
-	private UserService userService;
 
 	@SuppressWarnings("unused")
 	@Override

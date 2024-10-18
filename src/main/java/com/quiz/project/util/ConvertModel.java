@@ -1,12 +1,8 @@
 package com.quiz.project.util;
 
-import java.beans.FeatureDescriptor;
 import java.beans.PropertyDescriptor;
-import java.sql.Array;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Stream;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeanWrapper;

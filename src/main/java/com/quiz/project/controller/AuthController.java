@@ -4,7 +4,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
@@ -20,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.quiz.project.config.JwtConfig;
 import com.quiz.project.config.security.SecurityUtil;
-import com.quiz.project.dto.Response;
 import com.quiz.project.dto.req.LoginReqDTO;
 import com.quiz.project.dto.req.UserReqDTO;
 import com.quiz.project.dto.resp.AuthRespDTO;

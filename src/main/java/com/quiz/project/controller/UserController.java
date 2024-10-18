@@ -8,9 +8,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.quiz.project.dto.Response;
 import com.quiz.project.dto.req.UserReqDTO;
-import com.quiz.project.dto.resp.AuthRespDTO;
 import com.quiz.project.dto.resp.UserRespDTO;
 import com.quiz.project.service.UserService;
 import com.quiz.project.util.annotation.ApiMessage;

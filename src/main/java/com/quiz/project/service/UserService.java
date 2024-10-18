@@ -1,22 +1,11 @@
 package com.quiz.project.service;
 
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.modelmapper.ModelMapper;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.quiz.project.config.ModelMapperConfig;
-import com.quiz.project.dto.Response;
 import com.quiz.project.dto.req.UserReqDTO;
-import com.quiz.project.dto.resp.AuthRespDTO;
-import com.quiz.project.dto.resp.CourseRespDTO;
 import com.quiz.project.dto.resp.UserRespDTO;
 import com.quiz.project.entity.UserEntity;
-import com.quiz.project.repository.CourseRepository;
 import com.quiz.project.repository.UserRepository;
 import com.quiz.project.util.ConvertModel;
 import com.quiz.project.util.error.InvalidException;
@@ -24,13 +13,10 @@ import com.quiz.project.util.error.InvalidException;
 @Service
 public class UserService {
 	private UserRepository userRepository;
-	private CourseRepository courseRepository;
 	private PasswordEncoder passwordEncoder;
 
-	public UserService(UserRepository userRepository, CourseRepository courseRepository,
-			PasswordEncoder passwordEncoder) {
+	public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
 		this.userRepository = userRepository;
-		this.courseRepository = courseRepository;
 		this.passwordEncoder = passwordEncoder;
 	}
 
@@ -38,17 +24,40 @@ public class UserService {
 		return this.userRepository.findByUsername(username);
 	}
 
+	public UserEntity getUserEntityById(Long id) {
+		return this.userRepository.findById(id).get();
+	}
+
+	public boolean checkExistsById(Long id) {
+		return this.userRepository.existsById(id);
+	}
+
+	public UserEntity reqDtoToEntity(UserReqDTO userReqDto) {
+		UserEntity userEntity = new UserEntity();
+
+		ConvertModel.getModelMapping(userReqDto, userEntity);
+		userEntity.setPassword(passwordEncoder.encode(userReqDto.getPassword()));
+
+		return userEntity;
+	}
+
+	public UserRespDTO entityToRespDto(UserEntity userEntity) {
+		UserRespDTO userRespDto = new UserRespDTO();
+
+		ConvertModel.getModelMapping(userEntity, userRespDto);
+
+		return userRespDto;
+	}
+
 	public UserRespDTO createNewUser(UserReqDTO newUser) throws InvalidException {
-		PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
 		boolean isExist = this.userRepository.existsByUsername(newUser.getUsername());
 		if (isExist) {
 			throw new InvalidException("Username is existed");
 		}
-		UserEntity userEntity = ModelMapperConfig.map(newUser, UserEntity.class);
-		userEntity.setPassword(passwordEncoder.encode(newUser.getPassword()));
-		UserRespDTO userRespDTO = ModelMapperConfig.map(this.userRepository.save(userEntity), UserRespDTO.class);
-		System.out.println(userEntity.getId());
-		return userRespDTO;
+
+		UserEntity saveUser = this.userRepository.save(reqDtoToEntity(newUser));
+
+		return entityToRespDto(saveUser);
 	}
 
 	public UserRespDTO getUserById(Long id) throws InvalidException {
@@ -56,8 +65,10 @@ public class UserService {
 		if (!isExist) {
 			throw new InvalidException("Id invalid");
 		}
-		UserRespDTO userRespDTO = ModelMapperConfig.map(this.userRepository.findById(id), UserRespDTO.class);
-		return userRespDTO;
+
+		UserEntity userEntity = this.userRepository.findById(id).get();
+
+		return entityToRespDto(userEntity);
 	}
 
 	public boolean checkPassword(String password, String username) throws InvalidException {
@@ -76,17 +87,12 @@ public class UserService {
 		}
 
 		UserEntity userEntityInDb = getUserByUsername(username);
-		UserEntity updateUser = new UserEntity();
-		ConvertModel.getModelMapping(userReqDTO, updateUser);
-		updateUser.setPassword(passwordEncoder.encode(userReqDTO.getPassword()));
-		
+		UserEntity updateUser = reqDtoToEntity(userReqDTO);
+
 		updateUser.setCreatedDate(userEntityInDb.getCreatedDate());
 
 		UserEntity saveUser = this.userRepository.save(updateUser);
-		System.out.println(saveUser);
-		UserRespDTO userRespDTO = new UserRespDTO();
-		ConvertModel.getModelMapping(saveUser, userRespDTO);
 
-		return userRespDTO;
+		return entityToRespDto(saveUser);
 	}
 }
